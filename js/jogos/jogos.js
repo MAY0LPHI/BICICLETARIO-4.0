@@ -60,7 +60,8 @@ export class JogosManager {
             'doom_slayer': 'Exterminador do Doom',
             'elephant_memory': 'Memória de Elefante',
             'destroyer': 'Destruidor',
-            'galaxy_defender': 'Defensor da Galáxia'
+            'galaxy_defender': 'Defensor da Galáxia',
+            'termo_master': 'Mestre do Termo'
         };
         const name = achievementNames[achievementId] || achievementId;
         
@@ -170,7 +171,8 @@ export class JogosManager {
             { id: 'typing', name: 'Teste de Digitação', icon: 'keyboard', description: 'Teste sua velocidade de digitação!' },
             { id: 'memory', name: 'Jogo da Memória', icon: 'brain', description: '3 níveis de dificuldade com ícones de bicicleta!' },
             { id: 'spaceinvaders', name: 'Invasores Espaciais', icon: 'rocket', description: 'Defenda a Terra dos invasores espaciais!' },
-            { id: 'breakout', name: 'Breakout', icon: 'square', description: '5 fases com power-ups e tijolos resistentes!' }
+            { id: 'breakout', name: 'Breakout', icon: 'square', description: '5 fases com power-ups e tijolos resistentes!' },
+            { id: 'termo', name: 'Termo Ciclista', icon: 'type', description: 'Descubra a palavra de 5 letras sobre bicicletas!' }
         ];
 
         // Stats and Achievements Section
@@ -231,7 +233,8 @@ export class JogosManager {
             { id: 'doom_slayer', name: 'Exterminador do Doom', icon: 'crosshair', description: 'Complete todos os níveis do Doom' },
             { id: 'elephant_memory', name: 'Memória de Elefante', icon: 'brain', description: 'Complete o modo difícil da memória' },
             { id: 'destroyer', name: 'Destruidor', icon: 'square', description: 'Complete todas as fases do Breakout' },
-            { id: 'galaxy_defender', name: 'Defensor da Galáxia', icon: 'rocket', description: 'Derrote o boss do Space Invaders' }
+            { id: 'galaxy_defender', name: 'Defensor da Galáxia', icon: 'rocket', description: 'Derrote o boss do Space Invaders' },
+            { id: 'termo_master', name: 'Mestre do Termo', icon: 'type', description: 'Acerte 5 palavras seguidas no Termo' }
         ];
 
         return allAchievements.map(achievement => {
@@ -338,7 +341,8 @@ export class JogosManager {
             typing: { name: 'Teste de Digitação', class: TypingGame },
             memory: { name: 'Jogo da Memória', class: MemoryGame },
             spaceinvaders: { name: 'Invasores Espaciais', class: SpaceInvadersGame },
-            breakout: { name: 'Breakout', class: BreakoutGame }
+            breakout: { name: 'Breakout', class: BreakoutGame },
+            termo: { name: 'Termo Ciclista', class: TermoGame }
         };
 
         const game = games[gameId];
@@ -3773,6 +3777,392 @@ class BreakoutGame {
     endGame() {
         this.gameOver = true;
         this.onScore(this.score);
+    }
+}
+
+class TermoGame {
+    constructor(canvas, onScore, manager) {
+        this.canvas = canvas;
+        this.onScore = onScore;
+        this.manager = manager;
+        this.container = canvas.parentElement;
+        
+        // Bicycle-themed Portuguese words (5 letters)
+        this.words = [
+            'PEDAL', 'RODAS', 'FREIO', 'SELAS', 'RAIOS', 'PNEUS', 'CABOS', 
+            'GUIAS', 'AROS', 'BIKES', 'PEGAS', 'TUBOS', 'TRILHA', 'RENDA',
+            'CALOI', 'SPEED', 'PASMO', 'CICLO', 'FREIR', 'ROLAR', 'GIROS',
+            'ROTAS', 'SULCO', 'PISTA', 'MARCA', 'MOTOR', 'LUZES', 'BANCO',
+            'METAL', 'TRAVA', 'PRETO', 'BRAVO', 'RITMO', 'VOLTA', 'VIRAR',
+            'TURNO', 'CURSO', 'RAMPA', 'SUBIR', 'DESCI', 'VENTO', 'CASCO',
+            'COURO', 'BOLSA', 'CESTA', 'PORTE', 'ANDAR', 'RODAR', 'PEGAR',
+            'FAZER', 'MONTAR', 'SUJAR', 'LIMPA', 'LAVAR', 'SECAR', 'OLHAR',
+            'VISTA', 'CHAVE', 'BOMBA', 'PULSO', 'BRAÇO', 'CORPO', 'FORÇA',
+            'RITMO', 'CALMA', 'PAUSA', 'FUNDO', 'LARGO', 'BREVE', 'LENTO',
+            'VELOZ', 'RAPAZ', 'MOÇAS', 'GRUPO', 'FESTA', 'CLUBE', 'TORCE',
+            'ARENA', 'CAMPO', 'VERDE', 'FLORA', 'FAUNA', 'CHUVA', 'TEMPO'
+        ];
+        
+        this.maxAttempts = 6;
+        this.wordLength = 5;
+        this.currentAttempt = 0;
+        this.currentGuess = '';
+        this.attempts = [];
+        this.targetWord = '';
+        this.gameOver = false;
+        this.won = false;
+        this.score = 0;
+        this.streak = 0;
+        this.bestStreak = 0;
+        
+        this.keyboardLayout = [
+            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+            ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫']
+        ];
+        
+        this.letterStates = {}; // Track letter states for keyboard coloring
+        
+        this.setupUI();
+        this.setupControls();
+        this.newGame();
+    }
+
+    setupUI() {
+        // Hide canvas, create custom UI
+        this.canvas.style.display = 'none';
+        
+        // Remove existing UI if present
+        const existingUI = document.getElementById('termo-game-ui');
+        if (existingUI) existingUI.remove();
+        
+        const ui = document.createElement('div');
+        ui.id = 'termo-game-ui';
+        ui.className = 'w-full max-w-md mx-auto';
+        ui.innerHTML = `
+            <div class="text-center mb-4">
+                <h3 class="text-xl font-bold text-slate-800 dark:text-slate-200 mb-1">
+                    <i data-lucide="bike" class="w-6 h-6 inline mr-2 text-blue-500"></i>
+                    Termo Ciclista
+                </h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Descubra a palavra sobre bicicletas!</p>
+                <div class="flex justify-center gap-4 mt-2">
+                    <span class="text-sm"><strong id="termo-streak">0</strong> seguidas</span>
+                    <span class="text-sm"><strong id="termo-best">0</strong> recorde</span>
+                </div>
+            </div>
+            
+            <div id="termo-grid" class="mb-4">
+                ${this.renderGrid()}
+            </div>
+            
+            <div id="termo-message" class="text-center mb-4 h-6 font-medium"></div>
+            
+            <div id="termo-keyboard" class="mb-4">
+                ${this.renderKeyboard()}
+            </div>
+            
+            <div class="flex justify-center gap-4">
+                <button id="termo-new-game" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    Novo Jogo
+                </button>
+            </div>
+        `;
+        
+        this.container.appendChild(ui);
+        
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        this.setupKeyboardListeners();
+    }
+
+    renderGrid() {
+        let html = '<div class="grid gap-1.5 justify-center">';
+        for (let row = 0; row < this.maxAttempts; row++) {
+            html += '<div class="flex gap-1.5">';
+            for (let col = 0; col < this.wordLength; col++) {
+                const attempt = this.attempts[row];
+                let letter = '';
+                let stateClass = 'bg-slate-200 dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600';
+                
+                if (attempt) {
+                    letter = attempt.guess[col] || '';
+                    const state = attempt.states[col];
+                    if (state === 'correct') {
+                        stateClass = 'bg-green-500 border-2 border-green-600 text-white';
+                    } else if (state === 'present') {
+                        stateClass = 'bg-yellow-500 border-2 border-yellow-600 text-white';
+                    } else if (state === 'absent') {
+                        stateClass = 'bg-slate-500 dark:bg-slate-600 border-2 border-slate-600 dark:border-slate-500 text-white';
+                    }
+                } else if (row === this.currentAttempt && !this.gameOver) {
+                    letter = this.currentGuess[col] || '';
+                    if (letter) {
+                        stateClass = 'bg-slate-100 dark:bg-slate-600 border-2 border-blue-400 dark:border-blue-500';
+                    }
+                }
+                
+                html += `
+                    <div class="w-12 h-12 ${stateClass} rounded-lg flex items-center justify-center text-xl font-bold uppercase transition-all duration-200">
+                        ${letter}
+                    </div>
+                `;
+            }
+            html += '</div>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    renderKeyboard() {
+        let html = '<div class="flex flex-col gap-1.5 items-center">';
+        
+        this.keyboardLayout.forEach(row => {
+            html += '<div class="flex gap-1">';
+            row.forEach(key => {
+                let stateClass = 'bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500';
+                let width = 'w-8';
+                
+                if (key === 'ENTER' || key === '⌫') {
+                    width = 'w-14';
+                }
+                
+                const state = this.letterStates[key];
+                if (state === 'correct') {
+                    stateClass = 'bg-green-500 hover:bg-green-600 text-white';
+                } else if (state === 'present') {
+                    stateClass = 'bg-yellow-500 hover:bg-yellow-600 text-white';
+                } else if (state === 'absent') {
+                    stateClass = 'bg-slate-500 dark:bg-slate-700 hover:bg-slate-600 dark:hover:bg-slate-600 text-white';
+                }
+                
+                html += `
+                    <button data-key="${key}" class="termo-key ${width} h-10 ${stateClass} rounded text-sm font-semibold transition-colors">
+                        ${key}
+                    </button>
+                `;
+            });
+            html += '</div>';
+        });
+        
+        html += '</div>';
+        return html;
+    }
+
+    setupKeyboardListeners() {
+        // Virtual keyboard clicks
+        const keys = document.querySelectorAll('.termo-key');
+        keys.forEach(key => {
+            key.addEventListener('click', (e) => {
+                const keyValue = e.target.dataset.key;
+                this.handleKeyPress(keyValue);
+            });
+        });
+        
+        // New game button
+        const newGameBtn = document.getElementById('termo-new-game');
+        if (newGameBtn) {
+            newGameBtn.addEventListener('click', () => this.newGame());
+        }
+    }
+
+    setupControls() {
+        this.keyHandler = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handleKeyPress('ENTER');
+            } else if (e.key === 'Backspace') {
+                e.preventDefault();
+                this.handleKeyPress('⌫');
+            } else if (/^[a-zA-Z]$/.test(e.key)) {
+                this.handleKeyPress(e.key.toUpperCase());
+            }
+        };
+        document.addEventListener('keydown', this.keyHandler);
+    }
+
+    handleKeyPress(key) {
+        if (this.gameOver) return;
+        
+        if (key === 'ENTER') {
+            this.submitGuess();
+        } else if (key === '⌫') {
+            this.currentGuess = this.currentGuess.slice(0, -1);
+            this.updateGrid();
+        } else if (this.currentGuess.length < this.wordLength && /^[A-Z]$/.test(key)) {
+            this.currentGuess += key;
+            this.updateGrid();
+        }
+    }
+
+    submitGuess() {
+        if (this.currentGuess.length !== this.wordLength) {
+            this.showMessage('Complete a palavra de 5 letras!', 'error');
+            return;
+        }
+        
+        // Evaluate the guess
+        const states = this.evaluateGuess(this.currentGuess);
+        this.attempts.push({ guess: this.currentGuess, states });
+        
+        // Update letter states for keyboard
+        for (let i = 0; i < this.currentGuess.length; i++) {
+            const letter = this.currentGuess[i];
+            const state = states[i];
+            
+            // Only update if new state is "better"
+            if (state === 'correct') {
+                this.letterStates[letter] = 'correct';
+            } else if (state === 'present' && this.letterStates[letter] !== 'correct') {
+                this.letterStates[letter] = 'present';
+            } else if (state === 'absent' && !this.letterStates[letter]) {
+                this.letterStates[letter] = 'absent';
+            }
+        }
+        
+        // Check win condition
+        if (this.currentGuess === this.targetWord) {
+            this.won = true;
+            this.gameOver = true;
+            this.streak++;
+            if (this.streak > this.bestStreak) {
+                this.bestStreak = this.streak;
+            }
+            
+            // Calculate score based on attempts
+            const attemptBonus = [1000, 800, 600, 400, 200, 100];
+            this.score = attemptBonus[this.currentAttempt] || 100;
+            this.score += this.streak * 50; // Streak bonus
+            
+            this.showMessage(`Parabéns! Você acertou! +${this.score} pontos`, 'success');
+            this.onScore(this.score);
+            
+            // Check for achievement (5 in a row)
+            if (this.streak >= 5 && this.manager) {
+                this.manager.unlockAchievement('termo_master');
+            }
+        } else if (this.attempts.length >= this.maxAttempts) {
+            this.gameOver = true;
+            this.streak = 0;
+            this.showMessage(`A palavra era: ${this.targetWord}`, 'error');
+            this.onScore(0);
+        }
+        
+        this.currentAttempt++;
+        this.currentGuess = '';
+        this.updateGrid();
+        this.updateKeyboard();
+        this.updateStats();
+    }
+
+    evaluateGuess(guess) {
+        const states = new Array(this.wordLength).fill('absent');
+        const targetLetters = this.targetWord.split('');
+        const guessLetters = guess.split('');
+        
+        // First pass: mark correct letters
+        for (let i = 0; i < this.wordLength; i++) {
+            if (guessLetters[i] === targetLetters[i]) {
+                states[i] = 'correct';
+                targetLetters[i] = null; // Mark as used
+            }
+        }
+        
+        // Second pass: mark present letters
+        for (let i = 0; i < this.wordLength; i++) {
+            if (states[i] === 'correct') continue;
+            
+            const index = targetLetters.indexOf(guessLetters[i]);
+            if (index !== -1) {
+                states[i] = 'present';
+                targetLetters[index] = null; // Mark as used
+            }
+        }
+        
+        return states;
+    }
+
+    updateGrid() {
+        const gridContainer = document.getElementById('termo-grid');
+        if (gridContainer) {
+            gridContainer.innerHTML = this.renderGrid();
+        }
+    }
+
+    updateKeyboard() {
+        const keyboardContainer = document.getElementById('termo-keyboard');
+        if (keyboardContainer) {
+            keyboardContainer.innerHTML = this.renderKeyboard();
+            this.setupKeyboardListeners();
+        }
+    }
+
+    updateStats() {
+        const streakEl = document.getElementById('termo-streak');
+        const bestEl = document.getElementById('termo-best');
+        
+        if (streakEl) streakEl.textContent = this.streak;
+        if (bestEl) bestEl.textContent = this.bestStreak;
+    }
+
+    showMessage(text, type) {
+        const messageEl = document.getElementById('termo-message');
+        if (messageEl) {
+            messageEl.textContent = text;
+            messageEl.className = `text-center mb-4 h-6 font-medium ${
+                type === 'success' ? 'text-green-600 dark:text-green-400' :
+                type === 'error' ? 'text-red-600 dark:text-red-400' :
+                'text-slate-600 dark:text-slate-400'
+            }`;
+            
+            // Clear message after 3 seconds (unless it's a game over message)
+            if (!this.gameOver) {
+                setTimeout(() => {
+                    if (messageEl) messageEl.textContent = '';
+                }, 3000);
+            }
+        }
+    }
+
+    newGame() {
+        // Select a random word
+        this.targetWord = this.words[Math.floor(Math.random() * this.words.length)].toUpperCase();
+        
+        // Ensure word is exactly 5 letters
+        while (this.targetWord.length !== this.wordLength) {
+            this.targetWord = this.words[Math.floor(Math.random() * this.words.length)].toUpperCase();
+        }
+        
+        this.currentAttempt = 0;
+        this.currentGuess = '';
+        this.attempts = [];
+        this.letterStates = {};
+        this.gameOver = false;
+        this.won = false;
+        
+        this.updateGrid();
+        this.updateKeyboard();
+        this.showMessage('', '');
+        
+        const scoreEl = document.getElementById('game-score');
+        const phaseEl = document.getElementById('game-phase');
+        if (scoreEl) scoreEl.textContent = '0';
+        if (phaseEl) phaseEl.textContent = `Tentativa ${this.currentAttempt + 1}/${this.maxAttempts}`;
+    }
+
+    start() {
+        // Game starts immediately
+        this.updateStats();
+    }
+
+    stop() {
+        document.removeEventListener('keydown', this.keyHandler);
+        const ui = document.getElementById('termo-game-ui');
+        if (ui) ui.remove();
+        this.canvas.style.display = 'block';
     }
 }
 
