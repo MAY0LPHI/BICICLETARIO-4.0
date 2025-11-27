@@ -981,7 +981,10 @@ class DoomGame {
     spawnPickups() {
         for (let i = 0; i < 3; i++) {
             let x, y;
-            do { x = 1 + Math.random() * (this.map[0].length - 2); y = 1 + Math.random() * (this.map.length - 2); } while (this.map[Math.floor(y)][Math.floor(x)] === 1);
+            do {
+                x = 1 + Math.random() * (this.map[0].length - 2);
+                y = 1 + Math.random() * (this.map.length - 2);
+            } while (this.map[Math.floor(y)][Math.floor(x)] === 1);
             this.pickups.push({ x, y, type: Math.random() < 0.5 ? 'health' : 'ammo' });
         }
     }
@@ -994,7 +997,17 @@ class DoomGame {
             if (e.key === 'd' || e.key === 'D') this.keys.d = true;
             if (e.key === 'ArrowLeft') this.keys.left = true;
             if (e.key === 'ArrowRight') this.keys.right = true;
-            if (e.key === ' ') { e.preventDefault(); if (this.gameOver || this.won) { this.level = 1; this.score = 0; this.reset(); this.start(); } else { this.keys.shoot = true; } }
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (this.gameOver || this.won) {
+                    this.level = 1;
+                    this.score = 0;
+                    this.reset();
+                    this.start();
+                } else {
+                    this.keys.shoot = true;
+                }
+            }
         };
         this.keyUpHandler = (e) => {
             if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') this.keys.w = false;
@@ -1009,9 +1022,29 @@ class DoomGame {
         document.addEventListener('keyup', this.keyUpHandler);
     }
 
-    start() { if (this.running) return; this.running = true; this.lastUpdate = Date.now(); this.animationId = requestAnimationFrame(() => this.gameLoop()); }
-    stop() { this.running = false; if (this.animationId) { cancelAnimationFrame(this.animationId); this.animationId = null; } document.removeEventListener('keydown', this.keyDownHandler); document.removeEventListener('keyup', this.keyUpHandler); }
-    gameLoop() { if (!this.running) return; if (!this.gameOver && !this.won) this.update(); this.draw(); this.animationId = requestAnimationFrame(() => this.gameLoop()); }
+    start() {
+        if (this.running) return;
+        this.running = true;
+        this.lastUpdate = Date.now();
+        this.animationId = requestAnimationFrame(() => this.gameLoop());
+    }
+
+    stop() {
+        this.running = false;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        document.removeEventListener('keydown', this.keyDownHandler);
+        document.removeEventListener('keyup', this.keyUpHandler);
+    }
+
+    gameLoop() {
+        if (!this.running) return;
+        if (!this.gameOver && !this.won) this.update();
+        this.draw();
+        this.animationId = requestAnimationFrame(() => this.gameLoop());
+    }
 
     canMove(x, y) {
         const m = 0.2;
@@ -1237,7 +1270,11 @@ class DoomGame {
             }
         }
         this.ctx.fillStyle = '#ef4444';
-        this.enemies.forEach(e => { this.ctx.beginPath(); this.ctx.arc(offsetX + e.x * tileSize, offsetY + e.y * tileSize, 2, 0, Math.PI * 2); this.ctx.fill(); });
+        this.enemies.forEach(e => {
+            this.ctx.beginPath();
+            this.ctx.arc(offsetX + e.x * tileSize, offsetY + e.y * tileSize, 2, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
         this.ctx.fillStyle = '#22c55e';
         this.ctx.beginPath();
         this.ctx.arc(offsetX + this.player.x * tileSize, offsetY + this.player.y * tileSize, 3, 0, Math.PI * 2);
@@ -1257,7 +1294,10 @@ class DoomGame {
         if (infoEl) infoEl.textContent = `HP: ${this.player.health} | Munição: ${this.player.ammo} | Nível ${this.level}`;
     }
 
-    endGame() { this.gameOver = true; this.onScore(this.score); }
+    endGame() {
+        this.gameOver = true;
+        this.onScore(this.score);
+    }
 }
 
 class TypingGame {
